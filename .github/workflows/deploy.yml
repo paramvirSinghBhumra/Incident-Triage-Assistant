@@ -2,7 +2,7 @@ name: Deploy AI Triage Assistant
 
 on:
   push:
-    branches: [main]
+    branches: [develop]
   workflow_dispatch:
 
 permissions:
