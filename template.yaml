@@ -1,0 +1,54 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  AI Incident Triage Assistant — Datadog alert -> API Gateway -> Lambda ->
+  Datadog Logs API -> Bedrock (Claude Haiku) -> Slack.
+
+Parameters:
+  DatadogApiKey:
+    Type: String
+    NoEcho: true
+  DatadogAppKey:
+    Type: String
+    NoEcho: true
+  SlackWebhookUrl:
+    Type: String
+    NoEcho: true
+
+Globals:
+  Function:
+    Timeout: 30
+    MemorySize: 256
+    Runtime: python3.12
+
+Resources:
+  TriageFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: handler.lambda_handler
+      CodeUri: src/
+      Environment:
+        Variables:
+          DATADOG_API_KEY: !Ref DatadogApiKey
+          DATADOG_APP_KEY: !Ref DatadogAppKey
+          SLACK_WEBHOOK_URL: !Ref SlackWebhookUrl
+          BEDROCK_MODEL_ID: anthropic.claude-3-haiku-20240307-v1:0
+      Policies:
+        # TODO(Milestone 4): scope this down to the specific Bedrock model ARN
+        # instead of a wildcard, once you know it works.
+        - Statement:
+            - Effect: Allow
+              Action:
+                - bedrock:InvokeModel
+              Resource: '*'
+      Events:
+        DatadogWebhook:
+          Type: Api
+          Properties:
+            Path: /triage
+            Method: post
+
+Outputs:
+  ApiUrl:
+    Description: "POST this URL as the Datadog webhook target"
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/triage"
